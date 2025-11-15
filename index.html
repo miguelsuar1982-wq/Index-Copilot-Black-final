@@ -1,0 +1,772 @@
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Salud y hábitos — EPJA y Secundaria | Escuela 711 Federico Brandsen</title>
+  <meta name="description" content="Herramienta educativa para analizar hábitos, IMC y TMB, visualizar riesgos y generar recomendaciones personalizadas.">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&family=Nunito:wght@600;800&display=swap" rel="stylesheet">
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
+  <style>
+    :root{
+      --bg: #0b1220;
+      --panel: #121a2b;
+      --panel-2: #18243a;
+      --text: #e9f1ff;
+      --muted: #a8b2c7;
+      --brand: #7c3aed; /* púrpura */
+      --brand-2: #14b8a6; /* teal */
+      --accent: #f59e0b; /* amber */
+      --ok: #22c55e; /* green */
+      --warn: #f97316; /* orange */
+      --risk: #ef4444; /* red */
+      --chip: #24324a;
+      --border: #1f2b42;
+      --shadow: 0 10px 30px rgba(0,0,0,.35);
+      --radius: 18px;
+    }
+
+    *{box-sizing:border-box}
+    html,body{height:100%}
+    body{
+      margin:0;
+      font-family: Inter, system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial, sans-serif;
+      color:var(--text);
+      background:
+        radial-gradient(1200px 600px at 10% -20%, #17233a 0%, transparent 60%),
+        radial-gradient(1000px 800px at 100% 0%, #1b2b4c 0%, transparent 60%),
+        linear-gradient(180deg, #0a1020 0%, #0d1322 100%);
+      background-color: var(--bg);
+    }
+
+    header{
+      position:sticky; top:0; z-index:20;
+      backdrop-filter: saturate(1.4) blur(8px);
+      background: linear-gradient(180deg, rgba(10,16,32,.85), rgba(10,16,32,.55));
+      border-bottom:1px solid var(--border);
+    }
+    .wrap{max-width:1200px; margin:0 auto; padding:18px 24px}
+    .brand{
+      display:flex; align-items:center; gap:16px;
+    }
+    .logo{
+      width:44px; height:44px; border-radius:12px; background:
+        conic-gradient(from 200deg, var(--brand), var(--brand-2), var(--accent), var(--brand));
+      box-shadow: var(--shadow);
+      position:relative; overflow:hidden;
+    }
+    .logo::after{
+      content:"711"; position:absolute; inset:0;
+      display:grid; place-items:center;
+      font-family: Nunito, Inter, sans-serif; font-weight:800; letter-spacing:.2px;
+      color:#0b0f1a; text-shadow: 0 1px 0 rgba(255,255,255,.25);
+    }
+    h1{font-family: Nunito, Inter, sans-serif; font-weight:800; margin:0; font-size:1.3rem}
+    .sub{color:var(--muted); font-size:.95rem}
+
+    main{padding:30px 24px}
+    .grid{
+      display:grid; gap:24px;
+      grid-template-columns: 1.2fr 1fr;
+    }
+    @media (max-width: 980px){
+      .grid{grid-template-columns: 1fr}
+    }
+
+    .card{
+      background: linear-gradient(180deg, var(--panel), var(--panel-2));
+      border:1px solid var(--border);
+      border-radius: var(--radius);
+      box-shadow: var(--shadow);
+      padding:20px;
+    }
+    .card h2{
+      margin:0 0 8px 0; font-size:1.15rem; font-weight:700
+    }
+    .card .hint{color:var(--muted); font-size:.92rem}
+
+    .section-title{
+      display:flex; align-items:center; justify-content:space-between;
+      margin-bottom:14px;
+    }
+    .chips{display:flex; gap:10px; flex-wrap:wrap}
+    .chip{background:var(--chip); color:var(--muted); border:1px solid var(--border); padding:8px 12px; border-radius:100px; font-size:.85rem}
+
+    form{display:grid; gap:16px}
+    .row{display:grid; gap:12px; grid-template-columns: repeat(2, 1fr)}
+    @media (max-width: 680px){ .row{grid-template-columns: 1fr} }
+    label{display:block; font-weight:600; margin-bottom:8px}
+    input, select, textarea{
+      width:100%; padding:12px 14px; border-radius:12px;
+      border:1px solid var(--border); background:#0e1526; color:var(--text);
+      box-shadow: inset 0 0 0 1px rgba(255,255,255,.02);
+      outline:none;
+    }
+    input[type="range"]{padding:0}
+    .unit{color:var(--muted); font-size:.85rem; margin-left:6px}
+
+    .actions{display:flex; gap:12px; flex-wrap:wrap; margin-top:6px}
+    button{
+      background:linear-gradient(180deg, var(--brand), #5b2ebb);
+      color:white; border:0; padding:12px 16px; border-radius:12px; font-weight:700; cursor:pointer;
+      box-shadow: var(--shadow);
+    }
+    button.secondary{background:linear-gradient(180deg, #233251, #1b2742)}
+    button.ghost{background:transparent; border:1px dashed var(--border); color:var(--muted)}
+    button:disabled{opacity:.6; cursor:not-allowed}
+
+    .kpis{
+      display:grid; gap:12px; grid-template-columns: repeat(3, 1fr);
+    }
+    @media (max-width: 980px){ .kpis{grid-template-columns: 1fr 1fr} }
+    @media (max-width: 560px){ .kpis{grid-template-columns: 1fr} }
+
+    .kpi{
+      background: linear-gradient(180deg, #0d1629, #101a31);
+      border:1px solid var(--border); border-radius:14px; padding:14px;
+      display:flex; gap:10px; align-items:center;
+    }
+    .kpi .badge{
+      width:42px; height:42px; border-radius:10px;
+      background: conic-gradient(from 220deg, var(--brand-2), var(--accent), var(--brand));
+      display:grid; place-items:center; font-weight:800; color:#0b0f1a; font-family: Nunito, Inter, sans-serif;
+    }
+    .kpi .value{font-size:1.2rem; font-weight:700}
+    .kpi .label{color:var(--muted); font-size:.9rem}
+
+    .risk{
+      display:grid; gap:10px;
+      grid-template-columns: 1fr 1fr;
+    }
+    @media (max-width: 860px){ .risk{grid-template-columns:1fr} }
+    .risk-box{
+      border:1px solid var(--border); border-radius:14px; padding:14px;
+      background: linear-gradient(180deg, #0e1526, #111a2f);
+    }
+    .risk-score{
+      display:flex; justify-content:space-between; align-items:center;
+      background:#0b1324; border:1px solid var(--border); border-radius:12px; padding:10px 12px
+    }
+    .risk-meter{
+      height:8px; border-radius:100px; background:#0b1324; border:1px solid var(--border); overflow:hidden;
+    }
+    .risk-meter > span{display:block; height:100%}
+
+    .list{display:grid; gap:10px}
+    .item{display:flex; gap:10px; align-items:flex-start}
+    .dot{width:12px; height:12px; border-radius:50%; margin-top:4px}
+    .dot.ok{background:var(--ok)}
+    .dot.warn{background:var(--warn)}
+    .dot.risk{background:var(--risk)}
+
+    .footer-note{color:var(--muted); font-size:.85rem; margin-top:16px}
+
+    footer{
+      margin-top:28px; padding:20px; border-top:1px solid var(--border);
+      color:var(--muted); text-align:center;
+    }
+    .export{
+      display:flex; gap:10px; align-items:flex-start; flex-wrap:wrap; margin-top:12px;
+    }
+
+    /* Tooltip simple */
+    .tip{position:relative; cursor:help; border-bottom:1px dashed var(--muted)}
+    .tip:hover::after{
+      content:attr(data-tip);
+      position:absolute; left:0; top:120%;
+      background:#0b1324; border:1px solid var(--border); color:var(--text);
+      padding:8px 10px; border-radius:8px; width:max-content; max-width:280px;
+      box-shadow: var(--shadow); font-size:.85rem;
+    }
+  </style>
+</head>
+<body>
+  <header>
+    <div class="wrap brand">
+      <div class="logo" aria-hidden="true"></div>
+      <div>
+        <h1>Salud y hábitos — Escuela Prov. N° 711 “Federico Brandsen”</h1>
+        <div class="sub">Comodoro Rivadavia, Chubut — Proyecto educativo EPJA y Secundaria</div>
+      </div>
+    </div>
+  </header>
+
+  <main class="wrap">
+    <div class="grid">
+      <!-- Panel izquierdo: formulario y resultados -->
+      <section class="card">
+        <div class="section-title">
+          <h2>Datos personales y hábitos</h2>
+          <div class="chips">
+            <span class="chip">IMC</span>
+            <span class="chip">TMB</span>
+            <span class="chip">Hábitos diarios y semanales</span>
+          </div>
+        </div>
+
+        <p class="hint">Esta herramienta educativa ofrece información general y sugerencias de hábitos. No reemplaza la consulta profesional. Ante dudas de salud, consulta a un/a profesional.</p>
+
+        <form id="form">
+          <div class="row">
+            <div>
+              <label>Nombre</label>
+              <input type="text" id="nombre" placeholder="Opcional para personalizar recomendaciones" />
+            </div>
+            <div>
+              <label>Edad <span class="unit">(años)</span></label>
+              <input type="number" id="edad" min="5" max="110" step="1" placeholder="Ej. 16" required />
+            </div>
+          </div>
+
+          <div class="row">
+            <div>
+              <label>Género</label>
+              <select id="genero" required>
+                <option value="">Selecciona…</option>
+                <option value="femenino">Femenino</option>
+                <option value="masculino">Masculino</option>
+                <option value="otro">Otro / Prefiero no decir</option>
+              </select>
+            </div>
+            <div>
+              <label>Nivel de actividad</label>
+              <select id="actividad" required>
+                <option value="">Selecciona…</option>
+                <option value="sedentario">Sedentario (poco o nada de ejercicio)</option>
+                <option value="ligero">Ligero (1–3 días/semana)</option>
+                <option value="moderado">Moderado (3–5 días/semana)</option>
+                <option value="intenso">Intenso (6–7 días/semana)</option>
+                <option value="atleta">Muy intenso/Atleta</option>
+              </select>
+            </div>
+          </div>
+
+          <div class="row">
+            <div>
+              <label>Peso <span class="unit">(kg)</span></label>
+              <input type="number" id="peso" min="20" max="300" step="0.1" placeholder="Ej. 68.5" required />
+            </div>
+            <div>
+              <label>Estatura <span class="unit">(cm)</span></label>
+              <input type="number" id="estatura" min="80" max="230" step="0.1" placeholder="Ej. 170" required />
+            </div>
+          </div>
+
+          <div class="row">
+            <div>
+              <label>Hidratación diaria <span class="unit">(vasos, 1 vaso ≈ 250 ml)</span></label>
+              <input type="number" id="vasos" min="0" max="30" step="1" placeholder="Ej. 8" />
+            </div>
+            <div>
+              <label>Horas de sueño promedio <span class="unit">(por noche)</span></label>
+              <input type="number" id="sueno" min="0" max="24" step="0.5" placeholder="Ej. 7.5" />
+            </div>
+          </div>
+
+          <div class="row">
+            <div>
+              <label>Minutos de ejercicio <span class="unit">(por semana)</span></label>
+              <input type="number" id="ejercicio" min="0" max="3000" step="5" placeholder="Ej. 150" />
+            </div>
+            <div>
+              <label>Horas frente a pantallas <span class="unit">(por día)</span></label>
+              <input type="number" id="pantallas" min="0" max="24" step="0.5" placeholder="Ej. 4" />
+            </div>
+          </div>
+
+          <div class="row">
+            <div>
+              <label>Comidas saludables <span class="unit">(por semana)</span></label>
+              <input type="number" id="saludables" min="0" max="70" step="1" placeholder="Ej. 21" />
+            </div>
+            <div>
+              <label>“Comida chatarra” <span class="unit">(por semana)</span></label>
+              <input type="number" id="chatarra" min="0" max="70" step="1" placeholder="Ej. 3" />
+            </div>
+          </div>
+
+          <div class="row">
+            <div>
+              <label>Bebidas azucaradas <span class="unit">(por semana)</span></label>
+              <input type="number" id="bebidas" min="0" max="70" step="1" placeholder="Ej. 2" />
+            </div>
+            <div>
+              <label>Notas o contexto</label>
+              <textarea id="notas" rows="2" placeholder="Opcional: objetivos, deporte, horarios, etc."></textarea>
+            </div>
+          </div>
+
+          <div class="actions">
+            <button type="button" id="calcular">Calcular y visualizar</button>
+            <button type="button" class="secondary" id="guardar">Guardar</button>
+            <button type="button" class="secondary" id="cargar">Cargar</button>
+            <button type="button" class="ghost" id="exportar">Exportar JSON</button>
+            <button type="button" class="ghost" id="importar">Importar JSON</button>
+            <button type="reset" class="ghost">Limpiar</button>
+          </div>
+        </form>
+
+        <div style="margin-top:18px" id="results" hidden>
+          <div class="kpis">
+            <div class="kpi">
+              <div class="badge">IMC</div>
+              <div>
+                <div class="value" id="imcVal">—</div>
+                <div class="label" id="imcCat">Índice de masa corporal</div>
+              </div>
+            </div>
+            <div class="kpi">
+              <div class="badge">TMB</div>
+              <div>
+                <div class="value" id="tmbVal">—</div>
+                <div class="label">Tasa metabólica basal (kcal/día)</div>
+              </div>
+            </div>
+            <div class="kpi">
+              <div class="badge">Gasto</div>
+              <div>
+                <div class="value" id="teeVal">—</div>
+                <div class="label">Estimación diaria según actividad (kcal/día)</div>
+              </div>
+            </div>
+          </div>
+
+          <div class="risk" style="margin-top:16px">
+            <div class="risk-box">
+              <h3 style="margin:0 0 8px">Riesgo educativo de hábitos</h3>
+              <div class="risk-score">
+                <div>Índice global: <strong id="riskLabel">—</strong></div>
+                <div style="width:45%">
+                  <div class="risk-meter"><span id="riskMeter" style="width:0%; background:var(--ok)"></span></div>
+                </div>
+              </div>
+              <div class="list" style="margin-top:10px" id="riskList"></div>
+              <p class="footer-note">Este índice combina hidratación, sueño, ejercicio, pantallas y consumo de ultra-procesados. Es orientativo y pedagógico.</p>
+            </div>
+
+            <div class="risk-box">
+              <h3 style="margin:0 0 8px">Recomendaciones personalizadas</h3>
+              <div id="recs" class="list"></div>
+              <p class="footer-note">Sugerencias generales para hábitos. Ajusta según tu realidad y consulta a profesionales cuando lo necesites.</p>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- Panel derecho: gráficos y explicación -->
+      <section class="card">
+        <div class="section-title">
+          <h2>Visualizaciones y aprendizaje</h2>
+          <div class="chips">
+            <span class="chip">Gráficos dinámicos</span>
+            <span class="chip">Explicaciones</span>
+          </div>
+        </div>
+
+        <div style="display:grid; gap:16px">
+          <div class="card" style="padding:16px">
+            <h3 style="margin:0 0 8px">Balance de hábitos</h3>
+            <canvas id="radarHabitos" height="220"></canvas>
+          </div>
+
+          <div class="card" style="padding:16px">
+            <h3 style="margin:0 0 8px">Impacto en bienestar</h3>
+            <canvas id="barImpacto" height="180"></canvas>
+          </div>
+        </div>
+
+        <div class="card" style="margin-top:16px; padding:16px">
+          <h3 style="margin:0 0 8px">¿Cómo los hábitos influyen en la salud?</h3>
+          <div class="list">
+            <div class="item">
+              <span class="dot ok"></span>
+              <div><strong>Hidratación:</strong> Ayuda a regular temperatura, digestión y concentración. Beber agua regularmente durante el día suele ser beneficioso.</div>
+            </div>
+            <div class="item">
+              <span class="dot ok"></span>
+              <div><strong>Sueño:</strong> Descanso adecuado favorece memoria, estado de ánimo y recuperación. La privación de sueño puede asociarse con cansancio y menor rendimiento.</div>
+            </div>
+            <div class="item">
+              <span class="dot ok"></span>
+              <div><strong>Actividad física:</strong> Promueve capacidad cardiovascular, fuerza y bienestar emocional. La falta de movimiento se relaciona con menor condición física.</div>
+            </div>
+            <div class="item">
+              <span class="dot warn"></span>
+              <div><strong>Pantallas:</strong> Uso prolongado puede afectar el descanso y la postura. Hacer pausas, limitar uso nocturno y equilibrar con actividad fuera de pantalla es aconsejable.</div>
+            </div>
+            <div class="item">
+              <span class="dot risk"></span>
+              <div><strong>Ultra-procesados y bebidas azucaradas:</strong> El consumo frecuente se asocia con menor calidad nutricional. Priorizar alimentos frescos y agua puede ser beneficioso.</div>
+            </div>
+          </div>
+          <p class="footer-note">Información educativa general. Para situaciones particulares, buscá orientación profesional.</p>
+        </div>
+      </section>
+    </div>
+
+    <footer>
+      Hecho con dedicación para la muestra anual de la Escuela Provincial N° 711 “Federico Brandsen”. Este proyecto es pedagógico y no brinda diagnóstico médico.
+    </footer>
+  </main>
+
+  <script>
+    // Utilidades
+    const el = (id)=>document.getElementById(id);
+    const num = (v, def=0)=> {
+      const n = parseFloat(v);
+      return isNaN(n) ? def : n;
+    };
+
+    // Factores de actividad (educativos)
+    const activityFactor = {
+      sedentario: 1.2,
+      ligero: 1.375,
+      moderado: 1.55,
+      intenso: 1.725,
+      atleta: 1.9
+    };
+
+    // Clasificación IMC (educativa)
+    function imcCat(imc){
+      if (imc < 18.5) return "Bajo peso";
+      if (imc < 25) return "Peso saludable";
+      if (imc < 30) return "Sobrepeso";
+      return "Obesidad";
+    }
+
+    // Cálculo TMB (Mifflin-St Jeor, uso educativo)
+    function tmbCalc(genero, peso, estaturaCm, edad){
+      const estatura = estaturaCm;
+      if (genero === 'femenino'){
+        return 10*peso + 6.25*estatura - 5*edad - 161;
+      } else if (genero === 'masculino'){
+        return 10*peso + 6.25*estatura - 5*edad + 5;
+      } else {
+        // promedio neutral si no se especifica
+        return 10*peso + 6.25*estatura - 5*edad - 78;
+      }
+    }
+
+    // Escalas educativas objetivo
+    const goals = {
+      vasosDia: 8, // ~2 L
+      suenoHoras: 8,
+      ejercicioMinSem: 150, // actividad moderada
+      pantallasHoraDia: 2,
+      saludablesSem: 21, // 3/día
+      chatarraSemMax: 2,
+      bebidasAzucSemMax: 0
+    };
+
+    // Radar chart y bar chart
+    let radar, bar;
+
+    function setupCharts(){
+      const rctx = document.getElementById('radarHabitos');
+      const bctx = document.getElementById('barImpacto');
+
+      radar = new Chart(rctx, {
+        type: 'radar',
+        data: {
+          labels: ['Hidratación', 'Sueño', 'Ejercicio', 'Pantallas (invertido)', 'Comidas saludables', 'Ultra-procesados'],
+          datasets: [{
+            label: 'Tu balance',
+            data: [0,0,0,0,0,0],
+            borderColor: '#7c3aed',
+            backgroundColor: 'rgba(124,58,237,.22)',
+            pointBackgroundColor: '#14b8a6'
+          },{
+            label: 'Objetivo educativo',
+            data: [100,100,100,100,100,100],
+            borderColor: '#14b8a6',
+            backgroundColor: 'rgba(20,184,166,.18)'
+          }]
+        },
+        options: {
+          scales: {
+            r: {
+              beginAtZero:true,
+              suggestedMax:100,
+              grid: {color:'#24324a'},
+              angleLines: {color:'#24324a'},
+              ticks: {color:'#a8b2c7'}
+            }
+          },
+          plugins: {
+            legend: {labels:{color:'#e9f1ff'}}
+          }
+        }
+      });
+
+      bar = new Chart(bctx, {
+        type: 'bar',
+        data: {
+          labels: ['Energía', 'Ánimo', 'Descanso', 'Concentración', 'Bienestar general'],
+          datasets: [{
+            label: 'Impacto positivo estimado',
+            data: [0,0,0,0,0],
+            backgroundColor: ['#14b8a6','#7c3aed','#f59e0b','#22c55e','#3b82f6']
+          },{
+            label: 'Riesgo por hábitos',
+            data: [0,0,0,0,0],
+            backgroundColor: ['#ef4444','#ef4444','#ef4444','#ef4444','#ef4444']
+          }]
+        },
+        options: {
+          responsive:true,
+          scales: {
+            x: {ticks:{color:'#a8b2c7'}, grid:{color:'#1f2b42'}},
+            y: {beginAtZero:true, max:100, ticks:{color:'#a8b2c7'}, grid:{color:'#1f2b42'}}
+          },
+          plugins: {
+            legend: {labels:{color:'#e9f1ff'}}
+          }
+        }
+      });
+    }
+
+    // Normalización 0–100 para radar
+    function scoreHabitos({vasos, sueno, ejercicio, pantallas, saludables, chatarra, bebidas}){
+      const sVasos = Math.min(100, (vasos/goals.vasosDia)*100);
+      const sSueno = Math.min(100, (sueno/goals.suenoHoras)*100);
+      const sEj = Math.min(100, (ejercicio/goals.ejercicioMinSem)*100);
+      const sPantallas = Math.max(0, 100 - Math.min(100, (pantallas/goals.pantallasHoraDia)*100)); // invertido
+      const sSalud = Math.min(100, (saludables/goals.saludablesSem)*100);
+      // Penalización por ultra-procesados (chatarra + bebidas)
+      const excesoCh = Math.max(0, chatarra - goals.chatarraSemMax);
+      const excesoBe = Math.max(0, bebidas - goals.bebidasAzucSemMax);
+      const penaltyUP = Math.min(100, (excesoCh*20 + excesoBe*25)); // escala educativa
+      const sUltra = Math.max(0, 100 - penaltyUP);
+      return {sVasos, sSueno, sEj, sPantallas, sSalud, sUltra};
+    }
+
+    // Índice global de riesgo (0 mejor, 100 peor)
+    function riesgoGlobal(scores){
+      const positivos = (scores.sVasos + scores.sSueno + scores.sEj + scores.sPantallas + scores.sSalud + scores.sUltra) / 6;
+      return Math.round(100 - positivos); // a mayor hábitos buenos, menor riesgo
+    }
+
+    // Generación de lista de riesgos puntuales
+    function riesgosDetallados({vasos, sueno, ejercicio, pantallas, saludables, chatarra, bebidas}){
+      const list = [];
+      if (vasos < 6) list.push({nivel:'warn', texto:'Hidratación baja: distribuir agua a lo largo del día puede ayudar.'});
+      if (sueno < 7) list.push({nivel:'warn', texto:'Sueño limitado: una rutina estable favorece el descanso.'});
+      if (ejercicio < 90) list.push({nivel:'warn', texto:'Poca actividad: sumar caminatas o movilidad suave diaria es positivo.'});
+      if (pantallas > 4) list.push({nivel:'risk', texto:'Muchas pantallas: pausas regulares y menos uso nocturno pueden mejorar el descanso.'});
+      if (saludables < 14) list.push({nivel:'warn', texto:'Pocas comidas frescas: priorizar frutas, verduras y preparaciones caseras ayuda.'});
+      if (chatarra > 4) list.push({nivel:'risk', texto:'Alta frecuencia de ultra-procesados: reducir porciones y frecuencia es beneficioso.'});
+      if (bebidas > 2) list.push({nivel:'risk', texto:'Bebidas azucaradas frecuentes: elegir agua o infusiones sin azúcar reduce el impacto.'});
+      if (!list.length) list.push({nivel:'ok', texto:'Buen equilibrio general de hábitos.'});
+      return list;
+    }
+
+    // Recomendaciones personalizadas
+    function recomendaciones(data, scores){
+      const recs = [];
+      const nombre = data.nombre ? data.nombre : 'Tu';
+
+      // IMC y actividad
+      const imc = data.imc;
+      const cat = imcCat(imc);
+      recs.push({texto: `${nombre} IMC: ${imc.toFixed(1)} (${cat}). Este indicador es orientativo y debe interpretarse con cuidado.`});
+
+      // Hidratación
+      if (data.vasos < goals.vasosDia){
+        recs.push({texto:'Lleva una botella reutilizable y establece “pausas de agua” (mañana/tarde).'});
+      } else {
+        recs.push({texto:'Sostené la hidratación con agua a lo largo del día.'});
+      }
+
+      // Sueño
+      if (data.sueno < goals.suenoHoras){
+        recs.push({texto:'Rutina de sueño: horario regular, menos pantallas 60 min antes, ambiente oscuro y silencioso.'});
+      }
+
+      // Pantallas
+      if (data.pantallas > goals.pantallasHoraDia){
+        recs.push({texto:'Prueba “bloques” de atención con descansos 5–10 min por cada 45–60 min de pantalla.'});
+      }
+
+      // Ejercicio
+      if (data.ejercicio < goals.ejercicioMinSem){
+        recs.push({texto:'Sumá 10–20 min diarios de caminata activa o movilidad y progresá semana a semana.'});
+      } else {
+        recs.push({texto:'Excelente: mantené variedad (cardio, fuerza, movilidad) y descanso adecuado.'});
+      }
+
+      // Alimentación
+      if (data.saludables < goals.saludablesSem){
+        recs.push({texto:'Planificá 3 comidas frescas al día: base de vegetales + proteína + carbohidrato simple.'});
+      }
+      if (data.chatarra > goals.chatarraSemMax){
+        recs.push({texto:'Reducí la frecuencia de ultra-procesados y enfocate en porciones pequeñas y conciencia al comer.'});
+      }
+      if (data.bebidas > goals.bebidasAzucSemMax){
+        recs.push({texto:'Reemplazá bebidas azucaradas por agua, soda o infusiones sin azúcar.'});
+      }
+
+      // Bienestar
+      recs.push({texto:'Recordá que el bienestar es integral: alimentación, descanso, movimiento, vínculos y ocio creativo.'});
+
+      return recs;
+    }
+
+    // Render de riesgos y recomendaciones
+    function renderList(container, items){
+      container.innerHTML = '';
+      items.forEach(it=>{
+        const div = document.createElement('div');
+        div.className = 'item';
+        const dot = document.createElement('span');
+        dot.className = 'dot ' + (it.nivel || 'ok');
+        const text = document.createElement('div');
+        text.innerHTML = '<strong>' + (it.titulo || '') + '</strong>' + (it.titulo ? ' ' : '') + it.texto;
+        div.appendChild(dot); div.appendChild(text);
+        container.appendChild(div);
+      });
+    }
+
+    // Guardado local
+    function saveLocal(data){
+      localStorage.setItem('salud711', JSON.stringify(data));
+    }
+    function loadLocal(){
+      const raw = localStorage.getItem('salud711');
+      if (!raw) return null;
+      try { return JSON.parse(raw); } catch(e){ return null; }
+    }
+
+    // Exportar/Importar
+    function exportJSON(){
+      const data = collectData();
+      const blob = new Blob([JSON.stringify(data, null, 2)], {type:'application/json'});
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url; a.download = 'salud711.json'; a.click();
+      URL.revokeObjectURL(url);
+    }
+    function importJSON(){
+      const inp = document.createElement('input');
+      inp.type = 'file'; inp.accept = '.json,application/json';
+      inp.onchange = () => {
+        const file = inp.files[0]; if(!file) return;
+        const reader = new FileReader();
+        reader.onload = () => {
+          try{
+            const data = JSON.parse(reader.result);
+            fillForm(data);
+          }catch(e){ alert('Archivo no válido.'); }
+        };
+        reader.readAsText(file);
+      };
+      inp.click();
+    }
+
+    // Recolectar y llenar
+    function collectData(){
+      const edad = num(el('edad').value);
+      const genero = el('genero').value;
+      const actividad = el('actividad').value;
+      const peso = num(el('peso').value);
+      const estatura = num(el('estatura').value);
+      const vasos = num(el('vasos').value);
+      const sueno = num(el('sueno').value);
+      const ejercicio = num(el('ejercicio').value);
+      const pantallas = num(el('pantallas').value);
+      const saludables = num(el('saludables').value);
+      const chatarra = num(el('chatarra').value);
+      const bebidas = num(el('bebidas').value);
+      const nombre = el('nombre').value.trim();
+      const notas = el('notas').value.trim();
+
+      // cálculos
+      const imc = peso / Math.pow(estatura/100, 2);
+      const tmb = tmbCalc(genero, peso, estatura, edad);
+      const tee = tmb * (activityFactor[actividad] || 1.2);
+
+      return {nombre, edad, genero, actividad, peso, estatura, vasos, sueno, ejercicio, pantallas, saludables, chatarra, bebidas, notas, imc, tmb, tee};
+    }
+
+    function fillForm(data){
+      ['nombre','edad','genero','actividad','peso','estatura','vasos','sueno','ejercicio','pantallas','saludables','chatarra','bebidas','notas'].forEach(id=>{
+        if (data[id] !== undefined) el(id).value = data[id];
+      });
+      // recalcular vista
+      calcular();
+    }
+
+    // Principal
+    function calcular(){
+      const data = collectData();
+
+      if (!data.edad || !data.genero || !data.actividad || !data.peso || !data.estatura){
+        alert('Completa los campos obligatorios: edad, género, actividad, peso y estatura.');
+        return;
+      }
+
+      // KPIs
+      el('results').hidden = false;
+      el('imcVal').textContent = data.imc.toFixed(1);
+      el('imcCat').textContent = imcCat(data.imc);
+      el('tmbVal').textContent = Math.round(data.tmb);
+      el('teeVal').textContent = Math.round(data.tee);
+
+      // Scores y riesgo
+      const scores = scoreHabitos({
+        vasos: data.vasos, sueno: data.sueno, ejercicio: data.ejercicio,
+        pantallas: data.pantallas, saludables: data.saludables,
+        chatarra: data.chatarra, bebidas: data.bebidas
+      });
+      const rGlobal = riesgoGlobal(scores);
+      const rColor = rGlobal < 30 ? 'var(--ok)' : (rGlobal < 60 ? 'var(--warn)' : 'var(--risk)');
+      el('riskMeter').style.width = rGlobal + '%';
+      el('riskMeter').style.background = rColor;
+      el('riskLabel').textContent = rGlobal + '/100';
+
+      // Lista de riesgos
+      const det = riesgosDetallados({
+        vasos: data.vasos, sueno: data.sueno, ejercicio: data.ejercicio,
+        pantallas: data.pantallas, saludables: data.saludables,
+        chatarra: data.chatarra, bebidas: data.bebidas
+      });
+      renderList(el('riskList'), det);
+
+      // Recomendaciones
+      const recs = recomendaciones(data, scores);
+      renderList(el('recs'), recs);
+
+      // Radar update
+      const radarVals = [scores.sVasos, scores.sSueno, scores.sEj, scores.sPantallas, scores.sSalud, scores.sUltra];
+      radar.data.datasets[0].data = radarVals;
+      radar.update();
+
+      // Impacto (estimación educativa: positivo ~ promedio de hábitos; riesgo ~ índice global)
+      const positivo = Math.round((scores.sVasos + scores.sSueno + scores.sEj + scores.sPantallas + scores.sSalud + scores.sUltra)/6);
+      bar.data.datasets[0].data = [positivo, positivo, scores.sSueno, scores.sPantallas, positivo];
+      bar.data.datasets[1].data = [rGlobal, rGlobal, rGlobal, rGlobal, rGlobal];
+      bar.update();
+    }
+
+    // Eventos
+    document.addEventListener('DOMContentLoaded',()=>{
+      setupCharts();
+      const last = loadLocal();
+      if (last) fillForm(last);
+    });
+    el('calcular').addEventListener('click', calcular);
+    el('guardar').addEventListener('click', ()=>{
+      const data = collectData();
+      saveLocal(data);
+      alert('Datos guardados en este navegador.');
+    });
+    el('cargar').addEventListener('click', ()=>{
+      const data = loadLocal();
+      if (data) fillForm(data);
+      else alert('No hay datos guardados.');
+    });
+    el('exportar').addEventListener('click', exportJSON);
+    el('importar').addEventListener('click', importJSON);
+  </script>
+</body>
+</html>
